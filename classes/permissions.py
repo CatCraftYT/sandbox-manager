@@ -9,7 +9,7 @@ from subprocess import Popen
 
 class FilePermissions():
     # Tuple is (argname, bind-from, bind-to)
-    args: List[str]
+    args: List[str] = []
 
     def __init__(self, settings: Dict[str, str]):
         for permission_name, permission in settings.items():
@@ -42,6 +42,14 @@ class FilePermissions():
                 return f"--bind-try {arg} {arg}"
             case "bind-to-opt":
                 return f"--bind-try {arg}"
+            case "link":
+                return f"--symlink {arg}"
+            case "new-dev":
+                return f"--dev {arg}"
+            case "new-tmpfs":
+                return f"--tmpfs {arg}"
+            case "new-proc":
+                return f"--proc {arg}"
             case _:
                 raise AttributeError(f"'{name}' is not a valid filesystem permission.")
 
@@ -90,22 +98,22 @@ class DbusPermissions():
 
         # Bodgy, might need to come back to this if I want to generalize to other systems
         # Maybe create a sandbox config file to do it
-        self.proxy_process = Popen(['bwrap',
-        '--new-session',
-        '--die-with-parent',
-        '--ro-bind /usr /usr',
-        '--bind "$XDG_RUNTIME_DIR/bus" "$XDG_RUNTIME_DIR/bus"',
-        '--bind "$XDG_RUNTIME_DIR/xdg-dbus-proxy" "$XDG_RUNTIME_DIR/xdg-dbus-proxy"',
-        '--symlink /usr/bin /bin',
-        '--symlink /usr/lib /lib',
-        '--symlink /usr/lib /lib64',
-        '--symlink /usr/bin /sbin',
-        '--ro-bind ~/sandboxes/.flatpak-info /.flatpak-info',
-        '--ro-bind ~/sandboxes/.flatpak-info "$XDG_RUNTIME_DIR/flatpak-info"',
-        '--',
-        'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-proxy.sock --filter',
-        args
-        ], shell=True)
+        #self.proxy_process = Popen(['bwrap',
+        #'--new-session',
+        #'--die-with-parent',
+        #'--ro-bind /usr /usr',
+        #'--bind "$XDG_RUNTIME_DIR/bus" "$XDG_RUNTIME_DIR/bus"',
+        #'--bind "$XDG_RUNTIME_DIR/xdg-dbus-proxy" "$XDG_RUNTIME_DIR/xdg-dbus-proxy"',
+        #'--symlink /usr/bin /bin',
+        #'--symlink /usr/lib /lib',
+        #'--symlink /usr/lib /lib64',
+        #'--symlink /usr/bin /sbin',
+        #'--ro-bind ~/sandboxes/.flatpak-info /.flatpak-info',
+        #'--ro-bind ~/sandboxes/.flatpak-info "$XDG_RUNTIME_DIR/flatpak-info"',
+        #'--',
+        #'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-proxy.sock --filter',
+        #args
+        #], shell=True)
 
         return [self.close_dbus_proxy]
         
