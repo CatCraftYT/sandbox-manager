@@ -1,38 +1,52 @@
-from typing import List
+from typing import List, Dict, Tuple
 from subprocess import Popen
 
 # Permissions must define these functions:
 # - to_args() which returns the bwrap arguments corresponding to its permissions
 #
 # - finalize() which does any needed work before running the sandbox. The function may simply pass,
-#   return nothing, or return a list of processes to terminate after the main sandbox ends.
-#   If this function returns anything, then the main script will wait for the sandbox to terminate.
+#   return nothing, or return a callback to execute after the sandbox ends.
 
-class FilePermission():
-    src: str
-    dest: str
-    readonly: bool
-    optional: bool
-    device: bool
-    
-    def __init__(self, src: str, dest: str, readonly: bool, optional: bool, device: bool):
-        if (readonly and device):
-            return AttributeError("Cannot bind device file as readonly.")
+class FilePermissions():
+    # Tuple is (argname, bind-from, bind-to)
+    args: List[str]
 
-        self.src = src
-        self.dest = dest
-        self.readonly = readonly
-        self.optional = optional
-        self.device = device
+    def __init__(self, settings: Dict[str, str]):
+        for permission_name, permission in settings.items():
+            self.args.append(self.parse_config(permission_name, permission))
+
+    def parse_config(self, name: str, arg: str) -> str:
+        # A little messy :(
+        match name:
+            case "ro-bind":
+                return f"--ro-bind {arg} {arg}"
+            case "ro-bind-opt":
+                return f"--ro-bind-try {arg} {arg}"
+            case "ro-bind-to":
+                return f"--ro-bind {arg}"
+            case "ro-bind-to-opt":
+                return f"--ro-bind-try {arg}"
+            case "dev-bind":
+                return f"--dev-bind {arg} {arg}"
+            case "dev-bind-opt":
+                return f"--dev-bind-try {arg} {arg}"
+            case "dev-bind-to":
+                return f"--dev-bind {arg}"
+            case "dev-bind-to-opt":
+                return f"--dev-bind-try {arg}"
+            case "bind":
+                return f"--bind {arg} {arg}"
+            case "bind-to":
+                return f"--bind {arg}"
+            case "bind-opt":
+                return f"--bind-try {arg} {arg}"
+            case "bind-to-opt":
+                return f"--bind-try {arg}"
+            case _:
+                raise AttributeError(f"'{name}' is not a valid filesystem permission.")
 
     def to_args(self) -> str:
-        prefix = ""
-        if self.readonly:
-            prefix = "ro-"
-        elif self.device:
-            prefix = "dev-"
-
-        return f"--{prefix}bind{'-try' if self.optional else ''} {self.src} {self.dest}"
+        return " ".join(self.args)
     
     def finalize(self):
         pass
@@ -42,23 +56,41 @@ class DbusPermissions():
     see_names: List[str]
     talk_names: List[str]
     own_names: List[str]
+    proxy_process: Popen
 
-    def __init__(self, see_names, talk_names, own_names):
-        self.see_names = see_names
-        self.talk_names = talk_names
-        self.own_names = own_names
+    def __init__(self, settings: Dict[str, str]):
+        for permission_name, permission in settings.items():
+            self.parse_config(permission_name, permission)
     
+    def parse_config(self, name: str, arg: str):
+        match name:
+            case "see":
+                self.see_names.append(arg)
+                return
+            case "talk":
+                self.talk_names.append(arg)
+                return
+            case "own":
+                self.own_names.append(arg)
+                return
+            case _:
+                raise AttributeError(f"'{name}' is not a valid dbus permission type.")
+
     def to_args(self) -> str:
         return '--setenv DBUS_SESSION_BUS_ADDRESS unix:path="$XDG_RUNTIME_DIR"/bus ' + \
                '--bind "$XDG_RUNTIME_DIR"/xdg-dbus-proxy/$appName.sock "$XDG_RUNTIME_DIR"/bus'
     
+    def close_dbus_proxy(self):
+        self.proxy_process.terminate()
+    
     def finalize(self):
         args = "--see " + " --see ".join(self.see_names) + " " \
-               "--talk " + " --talk ".join(self.see_names) + " " \
-               "--own " + " --own ".join(self.see_names)
+               "--talk " + " --talk ".join(self.talk_names) + " " \
+               "--own " + " --own ".join(self.own_names)
 
         # Bodgy, might need to come back to this if I want to generalize to other systems
-        return [Popen(['bwrap',
+        # Maybe create a sandbox config file to do it
+        self.proxy_process = Popen(['bwrap',
         '--new-session',
         '--die-with-parent',
         '--ro-bind /usr /usr',
@@ -71,9 +103,11 @@ class DbusPermissions():
         '--ro-bind ~/sandboxes/.flatpak-info /.flatpak-info',
         '--ro-bind ~/sandboxes/.flatpak-info "$XDG_RUNTIME_DIR/flatpak-info"',
         '--',
-        'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-main-instance.sock --filter',
+        'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-proxy.sock --filter',
         args
-        ], shell=True)]
+        ], shell=True)
+
+        return [self.close_dbus_proxy]
         
 
 #class NamespacePermissions():
