@@ -1,4 +1,12 @@
 from typing import List
+from subprocess import Popen
+
+# Permissions must define these functions:
+# - to_args() which returns the bwrap arguments corresponding to its permissions
+#
+# - finalize() which does any needed work before running the sandbox. The function may simply pass,
+#   return nothing, or return a list of processes to terminate after the main sandbox ends.
+#   If this function returns anything, then the main script will wait for the sandbox to terminate.
 
 class FilePermission():
     src: str
@@ -17,7 +25,7 @@ class FilePermission():
         self.optional = optional
         self.device = device
 
-    def to_arg(self):
+    def to_args(self) -> str:
         prefix = ""
         if self.readonly:
             prefix = "ro-"
@@ -25,7 +33,48 @@ class FilePermission():
             prefix = "dev-"
 
         return f"--{prefix}bind{'-try' if self.optional else ''} {self.src} {self.dest}"
+    
+    def finalize(self):
+        pass
 
+
+class DbusPermissions():
+    see_names: List[str]
+    talk_names: List[str]
+    own_names: List[str]
+
+    def __init__(self, see_names, talk_names, own_names):
+        self.see_names = see_names
+        self.talk_names = talk_names
+        self.own_names = own_names
+    
+    def to_args(self) -> str:
+        return '--setenv DBUS_SESSION_BUS_ADDRESS unix:path="$XDG_RUNTIME_DIR"/bus ' + \
+               '--bind "$XDG_RUNTIME_DIR"/xdg-dbus-proxy/$appName.sock "$XDG_RUNTIME_DIR"/bus'
+    
+    def finalize(self):
+        args = "--see " + " --see ".join(self.see_names) + " " \
+               "--talk " + " --talk ".join(self.see_names) + " " \
+               "--own " + " --own ".join(self.see_names)
+
+        # Bodgy, might need to come back to this if I want to generalize to other systems
+        return [Popen(['bwrap',
+        '--new-session',
+        '--die-with-parent',
+        '--ro-bind /usr /usr',
+        '--bind "$XDG_RUNTIME_DIR/bus" "$XDG_RUNTIME_DIR/bus"',
+        '--bind "$XDG_RUNTIME_DIR/xdg-dbus-proxy" "$XDG_RUNTIME_DIR/xdg-dbus-proxy"',
+        '--symlink /usr/bin /bin',
+        '--symlink /usr/lib /lib',
+        '--symlink /usr/lib /lib64',
+        '--symlink /usr/bin /sbin',
+        '--ro-bind ~/sandboxes/.flatpak-info /.flatpak-info',
+        '--ro-bind ~/sandboxes/.flatpak-info "$XDG_RUNTIME_DIR/flatpak-info"',
+        '--',
+        'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-main-instance.sock --filter',
+        args
+        ], shell=True)]
+        
 
 #class NamespacePermissions():
 #    types = {
@@ -48,6 +97,6 @@ class FilePermission():
 #        
 #        self.args = [v for k,v in self.types.items() if k not in allowed_namespaces]
 #
-#    def to_arg(self):
+#    def to_args(self) -> str:
 #        return "--" + " --".join(self.args)
 #
