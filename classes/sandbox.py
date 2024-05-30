@@ -1,6 +1,7 @@
+import warnings
+import classes.permissions as permissions
 from typing import Dict, List, Any
 from subprocess import Popen
-import classes.permissions as permissions
 
 
 class Sandbox():
@@ -24,6 +25,9 @@ class Sandbox():
                 self.handle_preprocessing(value)
             case "permissions":
                 self.handle_permissions(value)
+            case "environment":
+                # Handle environment args
+                pass
             case _:
                 raise AttributeError(f"'{value}' is not a valid configuration category.")
                 
@@ -51,7 +55,7 @@ class Sandbox():
         if not self.executable:
             raise AttributeError(f"No executable was specified in the given config '{self.app_name}'.")
         if not self.app_name:
-            raise RuntimeWarning("This sandbox has no app name. Some config options may not work properly.")
+            warnings.warn("This sandbox has no app name. Some config options may not work properly.", RuntimeWarning)
 
         command = "bwrap "
         for permission in self.permissions:

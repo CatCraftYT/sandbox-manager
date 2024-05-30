@@ -1,10 +1,12 @@
 from classes.sandbox import Sandbox
-from yaml import safe_load
+from classes.config_loader import ConfigLoader
+from yaml import safe_dump
+import sys
 
 sandbox = None
-with open("examples/base.yaml", "r") as f:
-    config = safe_load(f)
-    sandbox = Sandbox(config)
+config_loader = ConfigLoader(["examples/"])
+config_loader.load("test")
+safe_dump(config_loader.config, sys.stdout)
 
-sandbox.finalize_perms()
-sandbox.run()
+#sandbox.finalize_perms()
+#sandbox.run()
