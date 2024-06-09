@@ -1,4 +1,5 @@
-from typing import List, Dict, Tuple
+import os
+from typing import List, Dict, Tuple, Any
 from subprocess import Popen
 
 # Permissions must define these functions:
@@ -13,50 +14,67 @@ class FilePermissions():
 
     def __init__(self, settings: Dict[str, str]):
         for permission_name, permission in settings.items():
-            self.args.append(self.parse_config(permission_name, permission))
+            arg = self.parse_config(permission_name, permission)
+            self.args += arg
 
-    def parse_config(self, name: str, arg: str) -> str:
+    def parse_config(self, name: str, arg: Any) -> List[str]:
         # A little messy :(
         match name:
             case "ro-bind":
-                return f"--ro-bind {arg} {arg}"
+                return [f"--ro-bind {arg} {arg}"]
             case "ro-bind-opt":
-                return f"--ro-bind-try {arg} {arg}"
+                return [f"--ro-bind-try {arg} {arg}"]
             case "ro-bind-to":
-                return f"--ro-bind {arg}"
+                return [f"--ro-bind {arg}"]
             case "ro-bind-to-opt":
-                return f"--ro-bind-try {arg}"
+                return [f"--ro-bind-try {arg}"]
             case "dev-bind":
-                return f"--dev-bind {arg} {arg}"
+                return [f"--dev-bind {arg} {arg}"]
             case "dev-bind-opt":
-                return f"--dev-bind-try {arg} {arg}"
+                return [f"--dev-bind-try {arg} {arg}"]
             case "dev-bind-to":
-                return f"--dev-bind {arg}"
+                return [f"--dev-bind {arg}"]
             case "dev-bind-to-opt":
-                return f"--dev-bind-try {arg}"
+                return [f"--dev-bind-try {arg}"]
             case "bind":
-                return f"--bind {arg} {arg}"
+                return [f"--bind {arg} {arg}"]
             case "bind-to":
-                return f"--bind {arg}"
+                return [f"--bind {arg}"]
             case "bind-opt":
-                return f"--bind-try {arg} {arg}"
+                return [f"--bind-try {arg} {arg}"]
             case "bind-to-opt":
-                return f"--bind-try {arg}"
+                return [f"--bind-try {arg}"]
             case "link":
-                return f"--symlink {arg}"
+                return [f"--symlink {arg}"]
             case "new-dev":
-                return f"--dev {arg}"
+                return [f"--dev {arg}"]
             case "new-tmpfs":
-                return f"--tmpfs {arg}"
+                return [f"--tmpfs {arg}"]
             case "new-proc":
-                return f"--proc {arg}"
+                return [f"--proc {arg}"]
+            case "create-files":
+                return self.handle_file_create(arg)
             case _:
                 raise AttributeError(f"'{name}' is not a valid filesystem permission.")
+
+    # TODO: This will leave a temporary file behind when the sandbox finishes.
+    # Unfortunately, I can't create a callback to delete at the end like dbus,
+    # since I need this to not block execution when running (because of the dbus sandbox)
+    def handle_file_create(self, config: Dict[str, str]) -> List[str]:
+        import tempfile
+
+        args = []
+        for bind_path, contents in config.items():
+            file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+            file.write(os.path.expandvars(contents))
+            args.append(f"--bind \"{file.name}\", {bind_path}")
+        
+        return args
 
     def to_args(self) -> str:
         return " ".join(self.args)
     
-    def finalize(self):
+    def prepare(self):
         pass
 
 
@@ -73,13 +91,13 @@ class DbusPermissions():
     def parse_config(self, name: str, arg: str):
         match name:
             case "see":
-                self.see_names.append(arg)
+                self.see_names += arg
                 return
             case "talk":
-                self.talk_names.append(arg)
+                self.talk_names += arg
                 return
             case "own":
-                self.own_names.append(arg)
+                self.own_names += arg
                 return
             case _:
                 raise AttributeError(f"'{name}' is not a valid dbus permission type.")
@@ -91,29 +109,22 @@ class DbusPermissions():
     def close_dbus_proxy(self):
         self.proxy_process.terminate()
     
-    def finalize(self):
+    def prepare(self):
+        from classes.sandbox import Sandbox
+        from classes.config_loader import ConfigLoader
+
         args = "--see " + " --see ".join(self.see_names) + " " \
                "--talk " + " --talk ".join(self.talk_names) + " " \
                "--own " + " --own ".join(self.own_names)
 
-        # Bodgy, might need to come back to this if I want to generalize to other systems
-        # Maybe create a sandbox config file to do it
-        #self.proxy_process = Popen(['bwrap',
-        #'--new-session',
-        #'--die-with-parent',
-        #'--ro-bind /usr /usr',
-        #'--bind "$XDG_RUNTIME_DIR/bus" "$XDG_RUNTIME_DIR/bus"',
-        #'--bind "$XDG_RUNTIME_DIR/xdg-dbus-proxy" "$XDG_RUNTIME_DIR/xdg-dbus-proxy"',
-        #'--symlink /usr/bin /bin',
-        #'--symlink /usr/lib /lib',
-        #'--symlink /usr/lib /lib64',
-        #'--symlink /usr/bin /sbin',
-        #'--ro-bind ~/sandboxes/.flatpak-info /.flatpak-info',
-        #'--ro-bind ~/sandboxes/.flatpak-info "$XDG_RUNTIME_DIR/flatpak-info"',
-        #'--',
-        #'xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName-proxy.sock --filter',
-        #args
-        #], shell=True)
+        # For security reasons, we only search for the dbus sandbox file
+        # in the directory the sandbox script is located in
+        script_path = os.path.abspath(os.path.dirname(__file__))
+        config_loader = ConfigLoader([script_path])
+        dbus_sandbox = Sandbox(config_loader.config)
+
+        dbus_sandbox.prepare()
+        self.proxy_process = dbus_sandbox.run()
 
         return [self.close_dbus_proxy]
         
