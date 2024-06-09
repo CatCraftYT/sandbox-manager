@@ -1,0 +1,7 @@
+name: Base permissions for PipeWire
+
+permissions:
+  filesystem:
+    ro-bind:
+      - '"$XDG_RUNTIME_DIR/pipewire-0"'
+

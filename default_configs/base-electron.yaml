@@ -1,0 +1,15 @@
+name: Base permissions for electron
+
+permissions:
+  filesystem:
+    ro-bind:
+      - /etc/localtime
+      - /etc/fonts
+      - /sys
+
+    # Hardware acceleration on NVIDIA
+    bind-devices:
+      - /dev/dri
+      - /dev/nvidia0
+      - /dev/nvidia-uvm
+      - /dev/nvidiactl

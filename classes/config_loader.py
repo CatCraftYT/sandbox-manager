@@ -26,7 +26,7 @@ class ConfigLoader():
         with open(config_file, "r") as file:
             config = safe_load(file)
         
-        self.merge_inherits(config)
+        config = self.merge_inherits(config)
         
         return config
 

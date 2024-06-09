@@ -1,0 +1,15 @@
+name: Create a fake home for the application
+
+preprocess:
+  create-dir:
+    - ~/sandboxes/fakehomes/$appName
+
+permissions:
+  filesystem:
+    bind-to:
+      - ~/sandboxes/fakehomes/$appName $HOME
+  
+  environment:
+    copyenv:
+      - HOME
+

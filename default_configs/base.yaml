@@ -1,0 +1,18 @@
+name: Base sandbox permissions
+
+permissions:
+  filesystem:
+    ro-bind:
+      - /usr
+    link:
+      - /usr/bin /bin
+      - /usr/lib /lib
+      - /usr/lib /lib64
+      - /usr/bin /sbin
+    new-dev:
+      - /dev
+    new-proc:
+      - /proc
+    new-tmpfs:
+      - /tmp
+

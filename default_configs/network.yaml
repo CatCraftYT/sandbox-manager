@@ -1,0 +1,12 @@
+name: Base permissions for network access
+
+permissions:
+  filesystem:
+    ro-bind:
+    - /etc/resolv.conf
+    - /etc/ca-certificates
+    - /etc/ssl
+
+  namespaces:
+    - network
+

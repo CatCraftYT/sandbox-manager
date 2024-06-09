@@ -1,0 +1,13 @@
+name: Base permissions for wayland display
+
+permissions:
+  filesystem:
+    ro-bind:
+      - '"$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"'
+  
+  environment:
+    copyenv:
+      - WAYLAND_DISPLAY
+      - XDG_SESSION_TYPE
+      - XDG_RUNTIME_DIR
+

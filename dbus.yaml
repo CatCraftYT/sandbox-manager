@@ -1,0 +1,25 @@
+# Internal config file used to run xdg-dbus-proxy.
+name: Default sandbox for xdg-dbus-proxy
+
+preprocess:
+  mkdir:
+    - '"$XDG_RUNTIME_DIR/xdg-dbus-proxy"'
+    - '"$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName"'
+
+permissions:
+  filesystem:
+    bind:
+      - '"$XDG_RUNTIME_DIR/$appName"'
+      - '"$XDG_RUNTIME_DIR/bus"'
+    ro-bind:
+      - /usr
+    create-files:
+      /.flatpak-info: |
+        [Application]
+        name=org.custom.$appName
+      $XDG_RUNTIME_DIR/.flatpak-info: |
+        [Application]
+        name=org.custom.$appName
+
+# Talk/own/see is appended by the main sandbox script
+run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock --filter --log

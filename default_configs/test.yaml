@@ -1,0 +1,17 @@
+name: Test Application
+
+inherit:
+  - base
+  - base-electron
+  - network
+  - wayland-socket
+  - pulseaudio
+  - pipewire
+  - fakehome
+
+permissions:
+  dbus:
+    talk:
+      - org.freedesktop.portal.*
+
+run: zsh

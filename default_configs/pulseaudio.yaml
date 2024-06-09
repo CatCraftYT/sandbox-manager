@@ -1,0 +1,10 @@
+name: Base permissions for pulseaudio
+
+permissions:
+  filesystem:
+    ro-bind:
+      - '"$XDG_RUNTIME_DIR/pulse/native"'
+    ro-bind-opt:
+      - ~/.config/pulse/cookie
+      - ~/.pulse-cookie
+
