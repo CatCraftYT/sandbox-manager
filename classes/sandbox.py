@@ -9,16 +9,30 @@ from re import sub
 
 class Sandbox():
     permission_list: list[permissions.BasePermission]
-    end_callbacks: list[Callable]
+    prepare_callbacks: list[Callable]
     app_name: str
     executable: str
+    # Args always prepended to bwrap args regardless of config
+    constant_args: list[str] = [
+        "--new-session",
+        "--die-with-parent",
+        "--clearenv"
+    ]
+    # Default bwrap args for sandboxes that don't specify
+    # some permission categories (e.g. sharing namespaces).
+    default_args: dict[str, str] = {
+        "namespaces": "--unshare-all",
+    }
 
     # Config is the output of yaml.safe_load()
     def __init__(self, config: dict[str, Any]):
         self.permission_list = []
-        self.end_callbacks = []
+        self.prepare_callbacks = []
         self.app_name = ""
         self.executable = ""
+
+        if not isinstance(config, dict):
+            raise AttributeError("Invalid config file.")
 
         for key, value in config.items():
             self._handle_config(key, value)
@@ -38,9 +52,6 @@ class Sandbox():
                 self._handle_preprocessing(value)
             case "permissions":
                 self._handle_permissions(value)
-            case "environment":
-                # Handle environment args
-                pass
             case _:
                 raise AttributeError(f"'{value}' is not a valid configuration category.")
     
@@ -54,25 +65,38 @@ class Sandbox():
             new_perm = self._handle_permission_category(key, settings)
             self.permission_list.append(new_perm)
 
-    def _handle_permission_category(self, name: str, settings: dict[str, Any]) -> permissions.BasePermission:
+    # Using Any type for settings since namespaces will be a list instead of a dict.
+    def _handle_permission_category(self, name: str, settings: Any) -> permissions.BasePermission:
         match name:
             case "filesystem":
                 return permissions.FilePermissions(settings)
             case "dbus":
                 return permissions.DbusPermissions(settings)
             case "namespaces":
-                #return permissions.NamespacePermissions(settings)
-                raise NotImplementedError
+                self.default_args.pop("namespaces")
+                return permissions.NamespacePermissions(settings)
             case "environment":
-                raise NotImplementedError
+                return permissions.EnvironmentPermissions(settings)
             case _:
                 raise AttributeError(f"'{name}' is not a valid permission configuration category.")
     
-    def _handle_preprocessing(self, config: dict[str, str]) -> None:
-        raise NotImplementedError
+    def _handle_preprocessing(self, config: dict[str, list[str]]) -> None:
+        for operation, value in config.items():
+            match operation:
+                case "create-dir":
+                    for directory in value:
+                        # Permission mode follows umask
+                        self.prepare_callbacks.append(lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True))
+                case _:
+                    raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")
 
     def create_bwrap_command(self) -> str:
         command = "bwrap "
+
+        command += " ".join(self.constant_args)
+        command += " ".join(self.default_args.values())
+        command += " "
+
         for permission in self.permission_list:
             command += permission.to_args() + " "
         
@@ -83,7 +107,7 @@ class Sandbox():
         for permission in self.permission_list:
             callback = permission.prepare()
             if callback:
-                self.end_callbacks += callback
+                self.prepare_callbacks += callback
 
     def run(self) -> Popen:
         self._prepare()
@@ -92,9 +116,9 @@ class Sandbox():
 
         process = Popen(command, shell=True, close_fds=False)
 
-        if len(self.end_callbacks) > 0:
+        if len(self.prepare_callbacks) > 0:
             process.wait()
-            for callback in self.end_callbacks:
+            for callback in self.prepare_callbacks:
                 callback()
         
         return process

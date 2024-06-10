@@ -18,53 +18,61 @@ class BasePermission(ABC):
 
 
 class FilePermissions(BasePermission):
-    # Tuple is (argname, bind-from, bind-to)
     args: list[str]
 
-    def __init__(self, settings: dict[str, str]):
+    def __init__(self, settings: dict[str, list[str] | dict[str, str]]):
         self.args = []
 
         for permission_name, permission in settings.items():
             arg = self.parse_config(permission_name, permission)
             self.args += arg
 
-    def parse_config(self, name: str, arg: Any) -> list[str]:
-        # A little messy :(
+    # Very messy :( :(
+    def parse_config(self, name: str, args: list[str] | dict[str, str]) -> list[str]:
+        def process_arg_list_double(arg):
+            return [f"{arg} {param} {param}" for param in args]
+        
+        def process_arg_list_single(arg):
+            return [f"{arg} {param}" for param in args]
+
         match name:
             case "ro-bind":
-                return [f"--ro-bind {arg} {arg}"]
+                return process_arg_list_double("--ro-bind")
             case "ro-bind-opt":
-                return [f"--ro-bind-try {arg} {arg}"]
+                return process_arg_list_double("--ro-bind-try")
             case "ro-bind-to":
-                return [f"--ro-bind {arg}"]
+                return process_arg_list_single("--ro-bind")
             case "ro-bind-to-opt":
-                return [f"--ro-bind-try {arg}"]
-            case "dev-bind":
-                return [f"--dev-bind {arg} {arg}"]
-            case "dev-bind-opt":
-                return [f"--dev-bind-try {arg} {arg}"]
-            case "dev-bind-to":
-                return [f"--dev-bind {arg}"]
-            case "dev-bind-to-opt":
-                return [f"--dev-bind-try {arg}"]
+                return process_arg_list_single("--ro-bind-try")
+            case "bind-devices":
+                return process_arg_list_double("--dev-bind")
+            case "bind-devices-opt":
+                return process_arg_list_double("--dev-bind-try")
+            case "bind-devices-to":
+                return process_arg_list_single("--dev-bind")
+            case "bind-devices-to-opt":
+                return process_arg_list_single("--dev-bind-try")
             case "bind":
-                return [f"--bind {arg} {arg}"]
-            case "bind-to":
-                return [f"--bind {arg}"]
+                return process_arg_list_double("--bind")
             case "bind-opt":
-                return [f"--bind-try {arg} {arg}"]
+                return process_arg_list_double("--bind-try")
+            case "bind-to":
+                return process_arg_list_single("--bind")
             case "bind-to-opt":
-                return [f"--bind-try {arg}"]
+                return process_arg_list_single("--bind-try")
             case "link":
-                return [f"--symlink {arg}"]
+                return process_arg_list_single("--symlink")
             case "new-dev":
-                return [f"--dev {arg}"]
+                return process_arg_list_single("--dev")
             case "new-tmpfs":
-                return [f"--tmpfs {arg}"]
+                return process_arg_list_single("--tmpfs")
             case "new-proc":
-                return [f"--proc {arg}"]
+                return process_arg_list_single("--proc")
             case "create-files":
-                return self.handle_file_create(arg)
+                if not isinstance(args, dict):
+                    raise AttributeError(f"'create-files' needs to be a linked list of the form 'name: data'.")
+
+                return self.handle_file_create(args)
             case _:
                 raise AttributeError(f"'{name}' is not a valid filesystem permission.")
 
@@ -74,9 +82,9 @@ class FilePermissions(BasePermission):
         args = []
         for bind_path, contents in config.items():
             file = tempfile.NamedTemporaryFile(mode="w", delete=False)
-            file.write(os.path.expandvars(contents))
+            file.write(os.path.expanduser(os.path.expandvars(contents)))
             # Instruct bwrap to copy from the temporary file (using its file descriptor)
-            args.append(f"--ro-bind-data {file.fileno()}, {bind_path}")
+            args.append(f"--ro-bind-data {file.fileno()} {bind_path}")
             # Delete the temporary file when the script terminates since it was copied into the sandbox
             file.close()
             atexit.register(lambda: os.remove(file.name))
@@ -130,6 +138,11 @@ class DbusPermissions(BasePermission):
                "--talk " + " --talk ".join(self.talk_names) + " " \
                "--own " + " --own ".join(self.own_names)
 
+        # Args to xdg-dbus-proxy set in this environment variable.
+        # Since we set them and immediately process the sandbox,
+        # it *should* be resistant to an attacker setting the variable.
+        os.environ["xdgDbusProxyArgs"] = args
+
         # For security reasons, we only search for the dbus sandbox file
         # in the directory the sandbox script is located in
         script_path = os.path.abspath(os.path.dirname(__file__))
@@ -141,27 +154,54 @@ class DbusPermissions(BasePermission):
         return [self.close_dbus_proxy]
         
 
-#class NamespacePermissions(BasePermission):
-#    types = {
-#        "user": "unshare-user-try",
-#        "cgroup": "unshare-cgroup-try",
-#        "user-optional": "unshare-user",
-#        "cgroup-optional": "unshare-cgroup",
-#        "ipc": "unshare-ipc",
-#        "pid": "unshare-pid",
-#        "net": "unshare-net",
-#        "hostname": "unshare-uts",
-#    }
-#    allowed_namespaces: List[str]
-#    args: List[str]
-#    
-#    def __init__(self, allowed_namespaces):
-#        for namespace in allowed_namespaces:
-#            if (namespace not in self.types):
-#                return AttributeError(f"Namespace name '{namespace}' does not exist.")
-#        
-#        self.args = [v for k,v in self.types.items() if k not in allowed_namespaces]
-#
-#    def to_args(self) -> str:
-#        return "--" + " --".join(self.args)
-#
+class NamespacePermissions(BasePermission):
+    # Using 'unshare-user-try' instead of 'unshare-user' because it makes
+    # this method of getting args much easier. However, for transparency's sake,
+    # I may want to add a warning if bwrap is unable to unshare.
+    # Since bwrap would be unable to unshare user/cgroup anyway, it isn't very bad.
+    # It's also the default behaviour of 'unshare-all'.
+    types: dict[str, str] = {
+        "share-user": "unshare-user-try",
+        "share-cgroup": "unshare-cgroup-try",
+        "share-ipc": "unshare-ipc",
+        "share-pid": "unshare-pid",
+        "share-network": "unshare-net",
+        "share-hostname": "unshare-uts",
+    }
+    types_processed: dict[str, str]
+    
+    def __init__(self, allowed_namespaces: list[str]):
+        self.types_processed = self.types.copy()
+
+        for namespace in allowed_namespaces:
+            if namespace in self.types.keys():
+                self.types_processed.pop(namespace)
+            else:
+                raise AttributeError(f"'{namespace}' is not a valid namespace permission.")
+
+    def to_args(self) -> str:
+        return "--" + " --".join(self.types.values())
+
+
+class EnvironmentPermissions(BasePermission):
+    args: list[str]
+
+    def __init__(self, settings: dict[str, list[str]]):
+        self.args = []
+
+        for option, variables in settings.items():
+            self.args += self.parse_config(option, variables)
+
+    def parse_config(self, option_name: str, variables: list[str]) -> list[str]:
+        match option_name:
+            case "copyenv":
+                return [f"--setenv {name} ${name}" for name in variables]
+            case "setenv":
+                # Split on spaces, set first arg to first word,
+                # set other arg to everything else with spaces in between
+                return [f"--setenv {name.split(" ")[0]} \"{' '.join(name.split(" ")[1:])}\"" for name in variables]
+            case _:
+                raise AttributeError(f"'{option_name}' is not a valid environment permission.")
+
+    def to_args(self) -> str:
+        return " ".join(self.args)

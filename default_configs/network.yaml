@@ -8,5 +8,5 @@ permissions:
     - /etc/ssl
 
   namespaces:
-    - network
+    - share-network
 
