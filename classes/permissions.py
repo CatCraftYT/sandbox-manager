@@ -1,6 +1,7 @@
 import os
 import atexit
 from subprocess import Popen
+from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from collections.abc import Callable
 from abc import ABC, abstractmethod
@@ -19,8 +20,12 @@ class BasePermission(ABC):
 
 class FilePermissions(BasePermission):
     args: list[str]
+    # This is needed to keep the temporary files in scope
+    # so that the file descriptors remain open for bwrap. Gross.
+    tempfiles: list[_TemporaryFileWrapper]
 
     def __init__(self, settings: dict[str, list[str] | dict[str, str]]):
+        self.tempfiles = []
         self.args = []
 
         for permission_name, permission in settings.items():
@@ -81,13 +86,13 @@ class FilePermissions(BasePermission):
 
         args = []
         for bind_path, contents in config.items():
-            file = tempfile.NamedTemporaryFile(mode="w", delete=False)
+            file = tempfile.NamedTemporaryFile(mode="w+")
             file.write(os.path.expanduser(os.path.expandvars(contents)))
+            os.set_inheritable(file.fileno(), True)
+            self.tempfiles.append(file)
+
             # Instruct bwrap to copy from the temporary file (using its file descriptor)
-            args.append(f"--ro-bind-data {file.fileno()} {bind_path}")
-            # Delete the temporary file when the script terminates since it was copied into the sandbox
-            file.close()
-            atexit.register(lambda: os.remove(file.name))
+            args.append(f"--bind-data {file.fileno()} {bind_path}")
         
         return args
 
@@ -129,14 +134,23 @@ class DbusPermissions(BasePermission):
     
     def close_dbus_proxy(self) -> None:
         self.proxy_process.terminate()
+        # Remove the socket so that xdg-dbus-proxy can use it again later
+        os.remove(os.path.expandvars("$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock"))
     
     def prepare(self) -> Optional[list[Callable]]:
+        from time import sleep
         from classes.sandbox import Sandbox
         from classes.config_loader import ConfigLoader
 
-        args = "--see " + " --see ".join(self.see_names) + " " \
-               "--talk " + " --talk ".join(self.talk_names) + " " \
-               "--own " + " --own ".join(self.own_names)
+        # Using a list because we can't have trailing spaces (it becomes part of the arg)
+        args = []
+        if self.see_names:
+            args.append("--see=" + " --see=".join(self.see_names))
+        if self.talk_names:
+            args.append("--talk=" + " --talk=".join(self.talk_names))
+        if self.own_names:
+            args.append("--own=" + " --own=".join(self.own_names))
+        args = " ".join(args)
 
         # Args to xdg-dbus-proxy set in this environment variable.
         # Since we set them and immediately process the sandbox,
@@ -145,11 +159,18 @@ class DbusPermissions(BasePermission):
 
         # For security reasons, we only search for the dbus sandbox file
         # in the directory the sandbox script is located in
-        script_path = os.path.abspath(os.path.dirname(__file__))
+        # Get the parent of the script (since this will be located in main/classes)
+        script_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
         config_loader = ConfigLoader([script_path])
+        config_loader.load("dbus")
+        config_loader.config["name"] = os.environ["appName"]
         dbus_sandbox = Sandbox(config_loader.config)
 
         self.proxy_process = dbus_sandbox.run()
+
+        # Wait for xdg-dbus-proxy to open the socket.
+        while not os.path.exists(os.path.expandvars("$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock")):
+            sleep(0.1)
 
         return [self.close_dbus_proxy]
         

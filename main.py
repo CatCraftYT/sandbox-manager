@@ -39,7 +39,7 @@ argparser.add_argument(
 args = argparser.parse_args()
 
 config_loader = ConfigLoader(["default_configs/"])
-config_loader.load("test")
+config_loader.load(args.filename)
 
 if args.flatten:
     safe_dump(config_loader.config, sys.stdout)

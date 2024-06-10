@@ -1,6 +1,7 @@
 import warnings
 from typing import Any
 from os import walk
+from os.path import join as pathjoin
 from yaml import safe_load
 from deepmerge import always_merger as merger
 
@@ -15,7 +16,8 @@ class ConfigLoader():
     
     def load(self, config_name: str) -> dict[str, Any]:
         self.config = self._load(config_name)
-        self.config.pop("inherit")
+        # Remove inherit if it's present otherwise do nothing
+        self.config.pop("inherit", None)
         return self.config
 
     # Doesn't set self.config and doesn't remove inherits
@@ -60,5 +62,5 @@ class ConfigLoader():
             for directory,_,file_list in generator:
                 for file in file_list:
                     if file == filename:
-                        return directory + file
+                        return pathjoin(directory, file)
         raise FileNotFoundError(f"Could not find config file '{filename}'")

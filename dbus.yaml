@@ -1,18 +1,24 @@
 # Internal config file used to run xdg-dbus-proxy.
-name: Default sandbox for xdg-dbus-proxy
+name: dbus_default_name
 
 preprocess:
-  mkdir:
-    - '"$XDG_RUNTIME_DIR/xdg-dbus-proxy"'
-    - '"$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName"'
+  create-dirs:
+    - $XDG_RUNTIME_DIR/xdg-dbus-proxy
 
 permissions:
   filesystem:
     bind:
-      - '"$XDG_RUNTIME_DIR/$appName"'
+      - '"$XDG_RUNTIME_DIR/xdg-dbus-proxy"'
       - '"$XDG_RUNTIME_DIR/bus"'
     ro-bind:
       - /usr
+    # Needed for Arch Linux's root directory layout.
+    # If packaging for another distro, consider removing this
+    link:
+      - /usr/bin /bin
+      - /usr/lib /lib
+      - /usr/lib /lib64
+      - /usr/bin /sbin
     create-files:
       /.flatpak-info: |
         [Application]
@@ -21,4 +27,4 @@ permissions:
         [Application]
         name=org.custom.$appName
 
-run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" $XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock --filter --log "$xdgDbusProxyArgs"
+run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" "$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock" --filter "$xdgDbusProxyArgs"

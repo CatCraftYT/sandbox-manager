@@ -33,6 +33,13 @@ class Sandbox():
         self.executable = ""
         self.block = blocking
 
+        # Guarantee that the app name env variable will be set regardless
+        # of its position in the config (needed for dbus)
+        if config.get("name"):
+            self._set_app_name(config["name"])
+        else:
+            warnings.warn("This sandbox has no app name. Some config options (particularly D-Bus) may not work properly.", RuntimeWarning)
+
         if not isinstance(config, dict):
             raise AttributeError("Invalid config file.")
 
@@ -41,13 +48,11 @@ class Sandbox():
 
         if not self.executable:
             raise AttributeError(f"No executable was specified in the given config '{self.app_name}'.")
-        if not self.app_name:
-            warnings.warn("This sandbox has no app name. Some config options may not work properly.", RuntimeWarning)
             
     def _handle_config(self, name: str, value: Any) -> None:
         match name:
             case "name":
-                self._set_app_name(value)
+                pass
             case "run":
                 self.executable = value
             case "preprocess":
@@ -85,10 +90,10 @@ class Sandbox():
     def _handle_preprocessing(self, config: dict[str, list[str]]) -> None:
         for operation, value in config.items():
             match operation:
-                case "create-dir":
+                case "create-dirs":
                     for directory in value:
                         # Permission mode follows umask
-                        self.termination_callbacks.append(lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True))
+                        lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True)
                 case _:
                     raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")
 
