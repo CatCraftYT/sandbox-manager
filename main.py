@@ -3,11 +3,23 @@ from classes.config_loader import ConfigLoader
 from yaml import safe_dump
 from argparse import ArgumentParser
 import sys
+import os
 
 argparser = ArgumentParser(
     prog="sandbox",
     description="Python script for managing bubblewrap (bwrap) sandboxes.",
-    epilog="Read the man page for more information on configuration and security."
+    epilog="Configuration files will be read from directories contained within \
+    the '--search-in' argument(s), or from the 'SANDBOX_CONFIG_DIRS' environment \
+    variable (seperated by colons), in that order. \
+    Read the man page for more information on configuration and security."
+)
+argparser.add_argument(
+    "--flatten", "-f",
+    action="store_true",
+    default=False,
+    help="Parse the given configuration file and its dependencies, \
+    print out a new configuration file with the dependencies integrated, then exit. \
+    Useful for determining exactly what a program will be given access to."
 )
 argparser.add_argument(
     "--blocking", "-b",
@@ -24,12 +36,11 @@ argparser.add_argument(
     Useful for running a shell in your program's environment."
 )
 argparser.add_argument(
-    "--flatten", "-f",
-    action="store_true",
-    default=False,
-    help="Parse the given configuration file and its dependencies, \
-    print out a new configuration file with the dependencies integrated, then exit. \
-    Useful for determining exactly what a program will be given access to."
+    "--search-in", "-s",
+    action="append",
+    default=[],
+    metavar="DIR",
+    help="A directory to search for config files in. Can be specified multiple times."
 )
 argparser.add_argument(
     "filename",
@@ -38,7 +49,11 @@ argparser.add_argument(
 
 args = argparser.parse_args()
 
-config_loader = ConfigLoader(["default_configs/"])
+search_paths = args.search_in + os.environ.get("SANDBOX_CONFIG_DIRS", "").split(":") + ["default_configs/"]
+# Remove empty strings and lists
+search_paths = [i for i in search_paths if i]
+
+config_loader = ConfigLoader(search_paths)
 config_loader.load(args.filename)
 
 if args.flatten:
