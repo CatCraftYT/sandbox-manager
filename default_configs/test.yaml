@@ -9,9 +9,9 @@ inherit:
   - pipewire
   - fakehome
 
-#permissions:
-#  dbus:
-#    talk:
-#      - org.freedesktop.portal.*
+permissions:
+  dbus:
+    talk:
+      - org.freedesktop.portal.*
 
 run: zsh

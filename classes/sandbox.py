@@ -8,8 +8,9 @@ from re import sub
 
 
 class Sandbox():
+    block: bool
     permission_list: list[permissions.BasePermission]
-    prepare_callbacks: list[Callable]
+    termination_callbacks: list[Callable]
     app_name: str
     executable: str
     # Args always prepended to bwrap args regardless of config
@@ -25,11 +26,12 @@ class Sandbox():
     }
 
     # Config is the output of yaml.safe_load()
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any], blocking: bool = False):
         self.permission_list = []
-        self.prepare_callbacks = []
+        self.termination_callbacks = []
         self.app_name = ""
         self.executable = ""
+        self.block = blocking
 
         if not isinstance(config, dict):
             raise AttributeError("Invalid config file.")
@@ -86,7 +88,7 @@ class Sandbox():
                 case "create-dir":
                     for directory in value:
                         # Permission mode follows umask
-                        self.prepare_callbacks.append(lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True))
+                        self.termination_callbacks.append(lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True))
                 case _:
                     raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")
 
@@ -107,18 +109,19 @@ class Sandbox():
         for permission in self.permission_list:
             callback = permission.prepare()
             if callback:
-                self.prepare_callbacks += callback
+                self.termination_callbacks += callback
 
     def run(self) -> Popen:
         self._prepare()
         command = self.create_bwrap_command()
-        print(command)
 
         process = Popen(command, shell=True, close_fds=False)
 
-        if len(self.prepare_callbacks) > 0:
+        if len(self.termination_callbacks) > 0 or self.block:
             process.wait()
-            for callback in self.prepare_callbacks:
+
+        if len(self.termination_callbacks) > 0:
+            for callback in self.termination_callbacks:
                 callback()
         
         return process
