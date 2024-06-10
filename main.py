@@ -8,7 +8,6 @@ config_loader = ConfigLoader(["default_configs/"])
 config_loader.load("test")
 safe_dump(config_loader.config, sys.stdout)
 
-#sandbox = Sandbox(config_loader.config)
+sandbox = Sandbox(config_loader.config)
 
-#sandbox.finalize_perms()
-#sandbox.run()
+sandbox.run()

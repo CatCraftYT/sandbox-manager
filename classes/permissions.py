@@ -1,23 +1,34 @@
 import os
-from typing import List, Dict, Tuple, Any
+import atexit
 from subprocess import Popen
+from typing import Any, Optional
+from collections.abc import Callable
+from abc import ABC, abstractmethod
 
-# Permissions must define these functions:
-# - to_args() which returns the bwrap arguments corresponding to its permissions
-#
-# - finalize() which does any needed work before running the sandbox. The function may simply pass,
-#   return nothing, or return a callback to execute after the sandbox ends.
+# Abstract base class (ABC) for a permission.
+# All permissions should inherit from this.
+class BasePermission(ABC):
+    @abstractmethod
+    def to_args(self) -> str:
+        return ""
 
-class FilePermissions():
+    # Not abstract because not every function will need this
+    def prepare(self) -> Optional[list[Callable]]:
+        pass
+
+
+class FilePermissions(BasePermission):
     # Tuple is (argname, bind-from, bind-to)
-    args: List[str] = []
+    args: list[str]
 
-    def __init__(self, settings: Dict[str, str]):
+    def __init__(self, settings: dict[str, str]):
+        self.args = []
+
         for permission_name, permission in settings.items():
             arg = self.parse_config(permission_name, permission)
             self.args += arg
 
-    def parse_config(self, name: str, arg: Any) -> List[str]:
+    def parse_config(self, name: str, arg: Any) -> list[str]:
         # A little messy :(
         match name:
             case "ro-bind":
@@ -57,38 +68,40 @@ class FilePermissions():
             case _:
                 raise AttributeError(f"'{name}' is not a valid filesystem permission.")
 
-    # TODO: This will leave a temporary file behind when the sandbox finishes.
-    # Unfortunately, I can't create a callback to delete at the end like dbus,
-    # since I need this to not block execution when running (because of the dbus sandbox)
-    def handle_file_create(self, config: Dict[str, str]) -> List[str]:
+    def handle_file_create(self, config: dict[str, str]) -> list[str]:
         import tempfile
 
         args = []
         for bind_path, contents in config.items():
             file = tempfile.NamedTemporaryFile(mode="w", delete=False)
             file.write(os.path.expandvars(contents))
-            args.append(f"--bind \"{file.name}\", {bind_path}")
+            # Instruct bwrap to copy from the temporary file (using its file descriptor)
+            args.append(f"--ro-bind-data {file.fileno()}, {bind_path}")
+            # Delete the temporary file when the script terminates since it was copied into the sandbox
+            file.close()
+            atexit.register(lambda: os.remove(file.name))
         
         return args
 
     def to_args(self) -> str:
         return " ".join(self.args)
-    
-    def prepare(self):
-        pass
 
 
-class DbusPermissions():
-    see_names: List[str]
-    talk_names: List[str]
-    own_names: List[str]
+class DbusPermissions(BasePermission):
+    see_names: list[str]
+    talk_names: list[str]
+    own_names: list[str]
     proxy_process: Popen
 
-    def __init__(self, settings: Dict[str, str]):
+    def __init__(self, settings: dict[str, str]):
+        self.see_names = []
+        self.talk_names = []
+        self.own_names = []
+
         for permission_name, permission in settings.items():
             self.parse_config(permission_name, permission)
     
-    def parse_config(self, name: str, arg: str):
+    def parse_config(self, name: str, arg: str) -> None:
         match name:
             case "see":
                 self.see_names += arg
@@ -106,10 +119,10 @@ class DbusPermissions():
         return '--setenv DBUS_SESSION_BUS_ADDRESS unix:path="$XDG_RUNTIME_DIR"/bus ' + \
                '--bind "$XDG_RUNTIME_DIR"/xdg-dbus-proxy/$appName.sock "$XDG_RUNTIME_DIR"/bus'
     
-    def close_dbus_proxy(self):
+    def close_dbus_proxy(self) -> None:
         self.proxy_process.terminate()
     
-    def prepare(self):
+    def prepare(self) -> Optional[list[Callable]]:
         from classes.sandbox import Sandbox
         from classes.config_loader import ConfigLoader
 
@@ -123,13 +136,12 @@ class DbusPermissions():
         config_loader = ConfigLoader([script_path])
         dbus_sandbox = Sandbox(config_loader.config)
 
-        dbus_sandbox.prepare()
         self.proxy_process = dbus_sandbox.run()
 
         return [self.close_dbus_proxy]
         
 
-#class NamespacePermissions():
+#class NamespacePermissions(BasePermission):
 #    types = {
 #        "user": "unshare-user-try",
 #        "cgroup": "unshare-cgroup-try",
