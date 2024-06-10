@@ -23,7 +23,7 @@ permissions:
       /.flatpak-info: |
         [Application]
         name=org.custom.$appName
-      $XDG_RUNTIME_DIR/.flatpak-info: |
+      "$XDG_RUNTIME_DIR/.flatpak-info": |
         [Application]
         name=org.custom.$appName
 

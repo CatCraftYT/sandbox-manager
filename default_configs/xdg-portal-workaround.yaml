@@ -1,0 +1,13 @@
+# Adds a 'flatpak-info' file to the sandbox, to work around
+# xdg-desktop-portal's filesharing limitation
+name: XDG Desktop Portal flatpak workaround
+
+permissions:
+  filesystem:
+    create-files:
+      /.flatpak-info: |
+        [Application]
+        name=org.custom.$appName
+      "$XDG_RUNTIME_DIR/.flatpak-info": |
+        [Application]
+        name=org.custom.$appName

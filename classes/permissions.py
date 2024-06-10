@@ -1,7 +1,6 @@
 import os
 import atexit
 from subprocess import Popen
-from tempfile import _TemporaryFileWrapper
 from typing import Any, Optional
 from collections.abc import Callable
 from abc import ABC, abstractmethod
@@ -20,9 +19,7 @@ class BasePermission(ABC):
 
 class FilePermissions(BasePermission):
     args: list[str]
-    # This is needed to keep the temporary files in scope
-    # so that the file descriptors remain open for bwrap. Gross.
-    tempfiles: list[_TemporaryFileWrapper]
+    tempfiles: list[str]
 
     def __init__(self, settings: dict[str, list[str] | dict[str, str]]):
         self.tempfiles = []
@@ -84,17 +81,25 @@ class FilePermissions(BasePermission):
     def handle_file_create(self, config: dict[str, str]) -> list[str]:
         import tempfile
 
+        if not os.path.exists("/tmp/sandbox_files"):
+            os.mkdir("/tmp/sandbox_files")
+        
         args = []
         for bind_path, contents in config.items():
-            file = tempfile.NamedTemporaryFile(mode="w+")
+            file = tempfile.NamedTemporaryFile(mode="w+", dir="/tmp/sandbox_files", prefix=os.environ.get("appName", ""), delete=False)
             file.write(os.path.expanduser(os.path.expandvars(contents)))
-            os.set_inheritable(file.fileno(), True)
-            self.tempfiles.append(file)
+            self.tempfiles.append(file.name)
+            file.close()
 
-            # Instruct bwrap to copy from the temporary file (using its file descriptor)
-            args.append(f"--bind-data {file.fileno()} {bind_path}")
+            args.append(f"--ro-bind {file.name} {bind_path}")
         
+        atexit.register(self.cleanup_tempfiles)
+
         return args
+
+    def cleanup_tempfiles(self):
+        for file in self.tempfiles:
+            os.remove(file)
 
     def to_args(self) -> str:
         return " ".join(self.args)
@@ -154,7 +159,7 @@ class DbusPermissions(BasePermission):
 
         # Args to xdg-dbus-proxy set in this environment variable.
         # Since we set them and immediately process the sandbox,
-        # it *should* be resistant to an attacker setting the variable.
+        # it *should* be resistant to an attacker randomly setting the variable.
         os.environ["xdgDbusProxyArgs"] = args
 
         # For security reasons, we only search for the dbus sandbox file
@@ -201,7 +206,7 @@ class NamespacePermissions(BasePermission):
                 raise AttributeError(f"'{namespace}' is not a valid namespace permission.")
 
     def to_args(self) -> str:
-        return "--" + " --".join(self.types.values())
+        return "--" + " --".join(self.types_processed.values())
 
 
 class EnvironmentPermissions(BasePermission):
