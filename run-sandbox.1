@@ -5,7 +5,7 @@
 \f[B]sandbox-manager\f[R] - A python script to manage bubblewrap (bwrap)
 sandboxes using YAML configuration files.
 .SH SYNOPSIS
-sandbox [\f[B]-h\f[R]] [\f[B]--flatten\f[R]] [\f[B]--blocking\f[R]]
+run-sandbox [\f[B]-h\f[R]] [\f[B]--flatten\f[R]] [\f[B]--blocking\f[R]]
 [\f[B]--run\f[R] \f[I]EXECUTABLE\f[R]] [\f[B]--search-in\f[R]
 \f[I]DIR\f[R]] \f[I]filename\f[R]
 .SH DESCRIPTION
@@ -20,7 +20,8 @@ In the directories specified in each instance of the
 In the directories specified in the \f[B]SANDBOX_CONFIG_DIRS\f[R]
 environment variable, with each directory seperated by colons.
 .IP "3." 3
-In the \f[B]default_configs\f[R] directory.
+In the \f[B]default_configs\f[R] directory next to
+\f[B]run-sandbox.py\f[R].
 .SH OPTIONS
 \f[B]filename\f[R]
 .PD 0
@@ -70,8 +71,8 @@ They require exactly one \f[B]run\f[R] key (if used as the
 \f[I]filename\f[R] argument), but a \f[B]name\f[R] key is also strongly
 recommended.
 Any values of a given configuration option will be passed to a shell, so
-it is \f[I]important\f[R] that only trusted configuration files are used
-(and inherited).
+it is important that only trusted configuration files are used (and
+inherited).
 .PP
 The valid configuration options are:
 .SS \f[B]name\f[R]: \f[I]string\f[R]

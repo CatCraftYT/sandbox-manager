@@ -6,7 +6,7 @@ import sys
 import os
 
 argparser = ArgumentParser(
-    prog="sandbox",
+    prog="run-sandbox",
     description="Python script for managing bubblewrap (bwrap) sandboxes.",
     epilog="Configuration files will be read from directories contained within \
     the '--search-in' argument(s), or from the 'SANDBOX_CONFIG_DIRS' environment \

@@ -1,9 +1,13 @@
-# Adds a 'flatpak-info' file to the sandbox, to work around
-# xdg-desktop-portal's filesharing limitation
 name: XDG Desktop Portal flatpak workaround
 
 permissions:
   filesystem:
+    # Bind /doc so that file sharing works
+    bind:
+      - '"$XDG_RUNTIME_DIR/doc"'
+
+    # Adds a 'flatpak-info' file to the sandbox, to work around
+    # xdg-desktop-portal's filesharing limitation
     create-files:
       /.flatpak-info: |
         [Application]
@@ -11,3 +15,6 @@ permissions:
       "$XDG_RUNTIME_DIR/.flatpak-info": |
         [Application]
         name=org.custom.$appName
+  dbus:
+    talk:
+      - org.freedesktop.portal.*
