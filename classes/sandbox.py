@@ -93,7 +93,7 @@ class Sandbox():
                 case "create-dirs":
                     for directory in value:
                         # Permission mode follows umask
-                        lambda: os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True)
+                        os.makedirs(os.path.expanduser(os.path.expandvars(directory)), exist_ok=True)
                 case _:
                     raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")
 
