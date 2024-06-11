@@ -47,9 +47,11 @@ argparser.add_argument(
     help="The name of the configuration file to run, without the file extension."
 )
 
+# Path of this script in the filesystem
+script_path = os.path.abspath(os.path.dirname(__file__))
 args = argparser.parse_args()
 
-search_paths = args.search_in + os.environ.get("SANDBOX_CONFIG_DIRS", "").split(":") + ["default_configs/"]
+search_paths = args.search_in + os.environ.get("SANDBOX_CONFIG_DIRS", "").split(":") + [os.path.join(script_path, "default_configs/")]
 # Remove empty strings and lists
 search_paths = [i for i in search_paths if i]
 
