@@ -1,3 +1,5 @@
-A sandbox manager for [bubblewrap](https://github.com/containers/bubblewrap), focused on transparency by forcing configuration files to explicitly specify what is allowed.
+# sandbox-manager
+A command-line sandbox manager written in Python for [bubblewrap](https://github.com/containers/bubblewrap), focused on transparency, with as few default permissions as possible.
 
-**(documentation will be written later when the project is more developed and concrete)**
+Read the [man page](https://github.com/CatCraftYT/sandbox-manager/blob/master/run-sandbox.1.md) for more information on usage and configuration.
+

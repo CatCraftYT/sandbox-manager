@@ -43,7 +43,7 @@ class ConfigLoader():
 
     def merge_config(self, config: dict[str, Any], other_config: dict[str, Any]) -> dict[str, Any]:
         new_config = config
-        categories = ["permissions", "preprocess", "environment"]
+        categories = ["permissions", "preprocess"]
         for key,value in other_config.items():
             if key == "run":
                 warnings.warn(f"Inherited config '{other_config}' includes a run statement. It will be ignored. If you wanted to run it, start a seperate sandbox.", RuntimeWarning)
