@@ -1,5 +1,6 @@
 import os
 import atexit
+import classes.utils as utils
 from subprocess import Popen
 from typing import Any, Optional
 from collections.abc import Callable
@@ -20,66 +21,52 @@ class BasePermission(ABC):
 class FilePermissions(BasePermission):
     args: list[str]
     tempfiles: list[str]
+    arg_templates: dict[str, str | Callable]
 
     def __init__(self, settings: dict[str, list[str] | dict[str, str]]):
         self.tempfiles = []
         self.args = []
+        self.arg_templates = {
+            "ro-bind": "--ro-bind {0} {0}",
+            "ro-bind-opt": "--ro-bind-try {0} {0}",
+            "ro-bind-to": "--ro-bind {0}",
+            "ro-bind-to-opt": "--ro-bind-try {0}",
+            "bind-devices": "--dev-bind {0} {0}",
+            "bind-devices-opt": "--dev-bind-try {0} {0}",
+            "bind-devices-to": "--dev-bind {0}",
+            "bind-devices-to-opt": "--dev-bind-try {0}",
+            "bind": "--bind {0} {0}",
+            "bind-opt": "--bind-try {0} {0}",
+            "bind-to": "--bind {0}",
+            "bind-to-opt": "--bind {0}",
+            "link": "--symlink {0}",
+            "new-dev": "--dev {0}",
+            "new-tmpfs": "--tmpfs {0}",
+            "new-proc": "--proc {0}",
+            "create-files": self.handle_file_create
+        }
 
         for permission_name, permission in settings.items():
             arg = self.parse_config(permission_name, permission)
             self.args += arg
 
-    # Very messy :( :(
     def parse_config(self, name: str, args: list[str] | dict[str, str]) -> list[str]:
-        def process_arg_list_double(arg):
-            return [f"{arg} {param} {param}" for param in args]
+        handler = self.arg_templates.get(name, None)
+        if handler == None:
+            raise AttributeError(f"'{name}' is not a valid filesystem permission.")
         
-        def process_arg_list_single(arg):
-            return [f"{arg} {param}" for param in args]
+        if isinstance(handler, Callable):
+            return handler(args)
 
-        match name:
-            case "ro-bind":
-                return process_arg_list_double("--ro-bind")
-            case "ro-bind-opt":
-                return process_arg_list_double("--ro-bind-try")
-            case "ro-bind-to":
-                return process_arg_list_single("--ro-bind")
-            case "ro-bind-to-opt":
-                return process_arg_list_single("--ro-bind-try")
-            case "bind-devices":
-                return process_arg_list_double("--dev-bind")
-            case "bind-devices-opt":
-                return process_arg_list_double("--dev-bind-try")
-            case "bind-devices-to":
-                return process_arg_list_single("--dev-bind")
-            case "bind-devices-to-opt":
-                return process_arg_list_single("--dev-bind-try")
-            case "bind":
-                return process_arg_list_double("--bind")
-            case "bind-opt":
-                return process_arg_list_double("--bind-try")
-            case "bind-to":
-                return process_arg_list_single("--bind")
-            case "bind-to-opt":
-                return process_arg_list_single("--bind-try")
-            case "link":
-                return process_arg_list_single("--symlink")
-            case "new-dev":
-                return process_arg_list_single("--dev")
-            case "new-tmpfs":
-                return process_arg_list_single("--tmpfs")
-            case "new-proc":
-                return process_arg_list_single("--proc")
-            case "create-files":
-                if not isinstance(args, dict):
-                    raise AttributeError(f"'create-files' needs to be a linked list of the form 'name: data'.")
+        if not isinstance(args, list):
+            raise AttributeError(f"'{name}' has an invalid argument. It should be a list.")
 
-                return self.handle_file_create(args)
-            case _:
-                raise AttributeError(f"'{name}' is not a valid filesystem permission.")
+        return utils.format_from_list(handler, args)
 
     def handle_file_create(self, config: dict[str, str]) -> list[str]:
         import tempfile
+        if not isinstance(config, dict):
+            raise AttributeError(f"'create-files' needs to be a linked list of the form 'name: data'.")
 
         if not os.path.exists("/tmp/sandbox_files"):
             os.mkdir("/tmp/sandbox_files")

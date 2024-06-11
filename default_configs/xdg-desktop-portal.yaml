@@ -1,8 +1,9 @@
-name: XDG Desktop Portal flatpak workaround
+name: Allows sandbox access to XDG Desktop Portal
 
 permissions:
   filesystem:
     # Bind /doc so that file sharing works
+    # Every app has access to every other app's shared files - need to fix
     bind:
       - '"$XDG_RUNTIME_DIR/doc"'
 
