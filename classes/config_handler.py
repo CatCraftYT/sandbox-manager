@@ -12,7 +12,7 @@ class ConfigHandler():
         # Add config handlers and instantiate with configs
         for category, settings in config.items():
             if category not in category_handlers:
-                raise AttributeError(f"Config category '{category}' does not exist.")
+                raise AttributeError(f"'{category}' is not a valid configuration category.")
             self.handlers.append(category_handlers[category](settings))
         
         # Add default args
