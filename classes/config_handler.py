@@ -26,7 +26,7 @@ class ConfigHandler():
         for handler in self.handlers:
             callback = handler.prepare()
             if callback:
-                callbacks.append(callback)
+                callbacks += callback
         
         return callbacks
 
