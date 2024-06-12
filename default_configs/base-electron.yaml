@@ -7,9 +7,3 @@ permissions:
       - /etc/fonts
       - /sys
 
-    # Hardware acceleration on NVIDIA
-    bind-devices:
-      - /dev/dri
-      - /dev/nvidia0
-      - /dev/nvidia-uvm
-      - /dev/nvidiactl
