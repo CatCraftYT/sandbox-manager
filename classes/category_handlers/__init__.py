@@ -18,7 +18,6 @@ for file in _file_list:
     handler_name = os.path.splitext(file)[0]
     try:
         a = importlib.import_module("classes.category_handlers." + handler_name)
-        print(dir(a))
         handler = a.handler
     except AttributeError:
         print(f"Category handler '{file}' has no 'handler' variable. It will not be used.")

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Callable
 from classes.category_handlers import CategoryBase, category_handlers
 
 class ConfigHandler():
@@ -16,11 +16,11 @@ class ConfigHandler():
             self.handlers.append(category_handlers[category](settings))
         
         # Add default args
-        for handler in category_handlers:
+        for handler in category_handlers.values():
             if type(handler) not in self.handlers:
                 self.args += handler.default_args()
     
-    def prepare(self):
+    def prepare(self) -> list[Callable]:
         callbacks = []
 
         for handler in self.handlers:

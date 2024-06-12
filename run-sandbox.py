@@ -56,7 +56,7 @@ if args.flatten:
     sys.exit(0)
 
 sandbox = None
-sandbox = Sandbox(config_loader.config, blocking=args.blocking)
+sandbox = Sandbox(config_loader.config)
 
 if args.run:
     sandbox.executable = args.run

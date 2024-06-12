@@ -27,6 +27,8 @@ class PermissionHandler(CategoryBase):
     ]
 
     def __init__(self, config: dict[str, Any]):
+        self.permission_list = []
+        
         for key, settings in config.items():
             new_perm = self.handle_permission_category(key, settings)
             self.permission_list.append(new_perm)

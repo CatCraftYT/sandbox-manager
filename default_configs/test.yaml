@@ -8,7 +8,7 @@ inherit:
   - pulseaudio
   - pipewire
   - fakehome
-  - xdg-portal-workaround
+  - xdg-desktop-portal
 
 permissions:
   dbus:
