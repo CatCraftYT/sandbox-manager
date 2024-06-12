@@ -6,6 +6,9 @@ class ConfigHandler():
     handlers: list[CategoryBase]
 
     def __init__(self, config: dict[str, Any]):
+        if not isinstance(config, dict):
+            raise AttributeError(f"Config file has an invalid structure.")
+
         self.args = []
         self.handlers = []
 

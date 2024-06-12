@@ -5,12 +5,20 @@ class PreprocessingHandler(CategoryBase):
     directories: list[str]
 
     def __init__(self, config: dict[str, list[str]]):
+        if not isinstance(config, dict):
+            raise AttributeError(f"Config category 'preprocess' has an invalid structure.")
+        
         self.directories = []
 
         for operation, value in config.items():
+            if not isinstance(value, list):
+                raise AttributeError(f"Config category 'preprocess' has an invalid structure.")
+            
             match operation:
                 case "create-dirs":
                     for directory in value:
+                        if not isinstance(directory, str):
+                            raise AttributeError(f"Config category 'preprocess' has an invalid structure.")
                         self.directories.append(directory)
                 case _:
                     raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")

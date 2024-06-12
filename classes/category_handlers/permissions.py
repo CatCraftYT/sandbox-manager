@@ -27,6 +27,9 @@ class PermissionHandler(CategoryBase):
     ]
 
     def __init__(self, config: dict[str, Any]):
+        if not isinstance(config, dict):
+            raise AttributeError(f"Config category 'permissions' has an invalid structure.")
+        
         self.permission_list = []
 
         for key, settings in config.items():
@@ -132,6 +135,9 @@ class FilePermissions(BasePermission):
         
         args = []
         for bind_path, contents in config.items():
+            if not isinstance(bind_path, str) or not isinstance(contents, str):
+                raise AttributeError(f"'create-files' has an invalid structure.")
+            
             file = tempfile.NamedTemporaryFile(mode="w+", dir="/tmp/sandbox_files", prefix=os.environ.get("appName", ""), delete=False)
             file.write(os.path.expanduser(os.path.expandvars(contents)))
             self.tempfiles.append(file.name)
@@ -157,7 +163,10 @@ class DbusPermissions(BasePermission):
     own_names: list[str]
     proxy_process: Popen
 
-    def __init__(self, settings: dict[str, str]):
+    def __init__(self, settings: dict[str, list[str]]):
+        if not isinstance(settings, dict):
+            raise AttributeError(f"Permission category 'dbus' has an invalid structure.")
+        
         self.see_names = []
         self.talk_names = []
         self.own_names = []
@@ -165,7 +174,10 @@ class DbusPermissions(BasePermission):
         for permission_name, permission in settings.items():
             self.parse_config(permission_name, permission)
     
-    def parse_config(self, name: str, arg: str) -> None:
+    def parse_config(self, name: str, arg: list[str]) -> None:
+        if not isinstance(name, str) or not isinstance(arg, list):
+            raise AttributeError(f"Permission category 'dbus' has an invalid structure.")
+        
         match name:
             case "see":
                 self.see_names += arg
@@ -237,6 +249,9 @@ class NamespacePermissions(BasePermission):
     types_processed: dict[str, str]
     
     def __init__(self, allowed_namespaces: list[str]):
+        if not isinstance(allowed_namespaces, list):
+            raise AttributeError(f"Permission category 'namespaces' has an invalid structure.")
+        
         self.types_processed = self.types.copy()
 
         for namespace in allowed_namespaces:
@@ -253,12 +268,21 @@ class EnvironmentPermissions(BasePermission):
     args: list[str]
 
     def __init__(self, settings: dict[str, list[str]]):
+        if not isinstance(settings, dict):
+            raise AttributeError(f"Permission category 'environment' has an invalid structure.")
+        
         self.args = []
 
         for option, variables in settings.items():
+            if not isinstance(option, str) or not isinstance(variables, list):
+                raise AttributeError(f"Permission category 'environment' has an invalid structure.")
+            
             self.args += self.parse_config(option, variables)
 
     def parse_config(self, option_name: str, variables: list[str]) -> list[str]:
+        if not isinstance(option_name, str) or not isinstance(variables, list):
+            raise AttributeError(f"Permission category 'environment' has an invalid structure.")
+        
         match option_name:
             case "copyenv":
                 return [f"--setenv {name} ${name}" for name in variables]
