@@ -1,7 +1,7 @@
 import warnings
 import os
 import atexit
-from classes.config_handler import ConfigHandler
+from classes.config_parser import ConfigParser
 from collections.abc import Callable
 from typing import Any
 from subprocess import Popen
@@ -10,7 +10,7 @@ from re import sub
 
 class Sandbox():
     blocking: bool
-    config_handler: ConfigHandler
+    config_parser: ConfigParser
     termination_callbacks: list[Callable]
     app_name: str
     executable: str
@@ -43,7 +43,7 @@ class Sandbox():
         if not isinstance(config, dict):
             raise AttributeError("Invalid config file.")
 
-        self.config_handler = ConfigHandler(config)
+        self.config_parser = ConfigParser(config)
     
     def _set_app_name(self, name: str) -> None:
         self.app_name = name
@@ -53,13 +53,13 @@ class Sandbox():
     def create_bwrap_command(self) -> str:
         command = ["bwrap"]
         command += self.constant_args
-        command += self.config_handler.to_args()
+        command += self.config_parser.to_args()
         command.append(self.executable)
 
         return " ".join(command)
     
     def _prepare(self) -> None:
-        self.termination_callbacks += self.config_handler.prepare()
+        self.termination_callbacks += self.config_parser.prepare()
 
     def run(self) -> Popen:
         self._prepare()

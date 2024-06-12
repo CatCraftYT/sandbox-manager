@@ -1,7 +1,7 @@
 from typing import Any, Callable
 from classes.category_handlers import CategoryBase, category_handlers
 
-class ConfigHandler():
+class ConfigParser():
     args: list[str]
     handlers: list[CategoryBase]
 
