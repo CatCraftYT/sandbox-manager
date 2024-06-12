@@ -11,7 +11,7 @@ class PreprocessingHandler(CategoryBase):
             match operation:
                 case "create-dirs":
                     for directory in value:
-                        self.directories += directory
+                        self.directories.append(directory)
                 case _:
                     raise AttributeError(f"'{operation}' is not a valid preprocessing operation.")
 

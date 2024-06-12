@@ -30,8 +30,8 @@ class ConfigHandler():
         
         return callbacks
 
-    def to_args(self) -> str:
+    def to_args(self) -> list[str]:
         for handler in self.handlers:
             self.args += handler.to_args()
         
-        return " ".join(self.args)
+        return self.args

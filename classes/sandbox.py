@@ -9,6 +9,7 @@ from re import sub
 
 
 class Sandbox():
+    blocking: bool
     config_handler: ConfigHandler
     termination_callbacks: list[Callable]
     app_name: str
@@ -21,7 +22,8 @@ class Sandbox():
     ]
 
     # Config is the output of yaml.safe_load()
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any], blocking: bool = True):
+        self.blocking = blocking
         self.termination_callbacks = []
         self.app_name = ""
         self.executable = ""
@@ -49,25 +51,30 @@ class Sandbox():
         os.environ["appName"] = sub(r"\s+", "", self.app_name)
 
     def create_bwrap_command(self) -> str:
-        return "bwrap " + self.config_handler.to_args()
+        command = ["bwrap"]
+        command += self.constant_args
+        command += self.config_handler.to_args()
+        command.append(self.executable)
+
+        return " ".join(command)
     
     def _prepare(self) -> None:
         self.termination_callbacks += self.config_handler.prepare()
 
     def run(self) -> Popen:
-        #self._prepare()
+        self._prepare()
         command = self.create_bwrap_command()
-        print(command)
 
-        #process = Popen(command, shell=True, close_fds=False)
-        #
-        ## Always block and run in background since
-        ## it's difficult to terminate the sandbox otherwise
-        #atexit.register(process.terminate)
-        #process.wait()
-        #
-        #if len(self.termination_callbacks) > 0:
-        #    for callback in self.termination_callbacks:
-        #        callback()
-        #
-        #return process
+        process = Popen(command, shell=True, close_fds=False)
+        
+        # Always block and run in background since
+        # it's difficult to terminate the sandbox otherwise
+        if self.blocking:
+            atexit.register(process.terminate)
+            process.wait()
+        
+        if len(self.termination_callbacks) > 0:
+            for callback in self.termination_callbacks:
+                callback()
+        
+        return process

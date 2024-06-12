@@ -28,7 +28,7 @@ class PermissionHandler(CategoryBase):
 
     def __init__(self, config: dict[str, Any]):
         self.permission_list = []
-        
+
         for key, settings in config.items():
             new_perm = self.handle_permission_category(key, settings)
             self.permission_list.append(new_perm)
@@ -47,6 +47,16 @@ class PermissionHandler(CategoryBase):
                 return EnvironmentPermissions(settings)
             case _:
                 raise AttributeError(f"'{name}' is not a valid permission configuration category.")
+
+    def prepare(self) -> list[Callable]:
+        callbacks = []
+
+        for perm in self.permission_list:
+            perm_callbacks = perm.prepare()
+            if perm_callbacks:
+                callbacks += perm_callbacks
+        
+        return callbacks
 
     def to_args(self) -> list[str]:
         args = []
@@ -198,8 +208,8 @@ class DbusPermissions(BasePermission):
         config_loader = ConfigLoader([script_path])
         config_loader.load("dbus")
         config_loader.config["name"] = os.environ["appName"]
-        config_loader.config["run"] += args
-        dbus_sandbox = Sandbox(config_loader.config)
+        config_loader.config["run"] += " " + args
+        dbus_sandbox = Sandbox(config_loader.config, blocking=False)
 
         self.proxy_process = dbus_sandbox.run()
 
