@@ -1,21 +1,68 @@
 import os
 import atexit
-import classes.utils as utils
+import __main__ as main
+from classes.category_handlers.category_base import CategoryBase
 from subprocess import Popen
 from typing import Any, Optional
 from collections.abc import Callable
 from abc import ABC, abstractmethod
 
+
 # Abstract base class (ABC) for a permission.
 # All permissions should inherit from this.
 class BasePermission(ABC):
     @abstractmethod
-    def to_args(self) -> str:
+    def to_args(self) -> list[str]:
         return ""
 
     # Not abstract because not every function will need this
     def prepare(self) -> Optional[list[Callable]]:
         pass
+
+
+class PermissionHandler(CategoryBase):
+    permission_list: list[BasePermission]
+    defaults: list[str] = [
+        "--unshare-all",
+    ]
+
+    def __init__(self, config: dict[str, Any]):
+        for key, settings in config.items():
+            new_perm = self.handle_permission_category(key, settings)
+            self.permission_list.append(new_perm)
+    
+    # Using Any type for settings since namespaces will be a list instead of a dict.
+    def handle_permission_category(self, name: str, settings: Any) -> BasePermission:
+        match name:
+            case "filesystem":
+                return FilePermissions(settings)
+            case "dbus":
+                return DbusPermissions(settings)
+            case "namespaces":
+                self.defaults.remove("--unshare-all")
+                return NamespacePermissions(settings)
+            case "environment":
+                return EnvironmentPermissions(settings)
+            case _:
+                raise AttributeError(f"'{name}' is not a valid permission configuration category.")
+
+    def to_args(self) -> list[str]:
+        args = []
+
+        for permission in self.permission_list:
+            args += permission.to_args()
+        
+        return args
+    
+    @staticmethod
+    def default_args() -> list[str]:
+        return PermissionHandler.defaults
+
+
+handler = PermissionHandler
+
+# /////////////////////////////////////////////////////////////////// #
+# Permission categories
 
 
 class FilePermissions(BasePermission):
@@ -61,7 +108,7 @@ class FilePermissions(BasePermission):
         if not isinstance(args, list):
             raise AttributeError(f"'{name}' has an invalid argument. It should be a list.")
 
-        return utils.format_from_list(handler, args)
+        return [handler.format(arg) for arg in args]
 
     def handle_file_create(self, config: dict[str, str]) -> list[str]:
         import tempfile
@@ -88,8 +135,8 @@ class FilePermissions(BasePermission):
         for file in self.tempfiles:
             os.remove(file)
 
-    def to_args(self) -> str:
-        return " ".join(self.args)
+    def to_args(self) -> list[str]:
+        return self.args
 
 
 class DbusPermissions(BasePermission):
@@ -120,9 +167,8 @@ class DbusPermissions(BasePermission):
             case _:
                 raise AttributeError(f"'{name}' is not a valid dbus permission type.")
 
-    def to_args(self) -> str:
-        return '--setenv DBUS_SESSION_BUS_ADDRESS unix:path="$XDG_RUNTIME_DIR"/bus ' + \
-               '--bind "$XDG_RUNTIME_DIR"/xdg-dbus-proxy/$appName.sock "$XDG_RUNTIME_DIR"/bus'
+    def to_args(self) -> list[str]:
+        return ['--setenv DBUS_SESSION_BUS_ADDRESS unix:path="$XDG_RUNTIME_DIR"/bus', '--bind "$XDG_RUNTIME_DIR"/xdg-dbus-proxy/$appName.sock "$XDG_RUNTIME_DIR"/bus']
     
     def close_dbus_proxy(self) -> None:
         self.proxy_process.terminate()
@@ -144,18 +190,13 @@ class DbusPermissions(BasePermission):
             args.append("--own=" + " --own=".join(self.own_names))
         args = " ".join(args)
 
-        # Args to xdg-dbus-proxy set in this environment variable.
-        # Since we set them and immediately process the sandbox,
-        # it *should* be resistant to an attacker randomly setting the variable.
-        os.environ["xdgDbusProxyArgs"] = args
-
         # For security reasons, we only search for the dbus sandbox file
         # in the directory the sandbox script is located in
-        # Get the parent of the script (since this will be located in main/classes)
-        script_path = os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+        script_path = os.path.dirname(main.__file__)
         config_loader = ConfigLoader([script_path])
         config_loader.load("dbus")
         config_loader.config["name"] = os.environ["appName"]
+        config_loader.config["run"] += args
         dbus_sandbox = Sandbox(config_loader.config)
 
         self.proxy_process = dbus_sandbox.run()
@@ -192,8 +233,8 @@ class NamespacePermissions(BasePermission):
             else:
                 raise AttributeError(f"'{namespace}' is not a valid namespace permission.")
 
-    def to_args(self) -> str:
-        return "--" + " --".join(self.types_processed.values())
+    def to_args(self) -> list[str]:
+        return ["--" + arg for arg in self.types_processed.values()]
 
 
 class EnvironmentPermissions(BasePermission):
@@ -216,5 +257,5 @@ class EnvironmentPermissions(BasePermission):
             case _:
                 raise AttributeError(f"'{option_name}' is not a valid environment permission.")
 
-    def to_args(self) -> str:
-        return " ".join(self.args)
+    def to_args(self) -> list[str]:
+        return self.args

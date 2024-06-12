@@ -27,4 +27,4 @@ permissions:
         [Application]
         name=org.custom.$appName
 
-run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" "$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock" --filter "$xdgDbusProxyArgs"
+run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" "$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock" --filter 
