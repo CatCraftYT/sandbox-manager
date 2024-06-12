@@ -26,9 +26,6 @@ Show a help message and exit.
 **--flatten -f**  
 Parse the given configuration file and its dependencies, print out a new configuration file with the dependencies integrated, then exit. Useful for determining exactly what a program will be given access to.
 
-**--blocking -b**  
-If set, the script will wait for the sandbox process to terminate before terminating itself. Useful when running a shell so that it runs in the foreground.
-
 **--run** *EXECUTABLE*  
 A program to run instead of the one specified in the given config file. Useful for running a shell in the sandboxed application's environment.
 

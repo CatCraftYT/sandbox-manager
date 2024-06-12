@@ -22,13 +22,6 @@ argparser.add_argument(
     Useful for determining exactly what a program will be given access to."
 )
 argparser.add_argument(
-    "--blocking", "-b",
-    action="store_true",
-    default=False,
-    help="If set, the script will wait for the sandbox process to terminate before terminating itself. \
-    Useful when running a shell so that it runs in the foreground."
-)
-argparser.add_argument(
     "--run",
     metavar="EXECUTABLE",
     default=None,

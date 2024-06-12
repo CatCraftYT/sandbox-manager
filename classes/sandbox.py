@@ -1,5 +1,6 @@
 import warnings
 import os
+import atexit
 import classes.permissions as permissions
 from collections.abc import Callable
 from typing import Any
@@ -8,7 +9,6 @@ from re import sub
 
 
 class Sandbox():
-    block: bool
     permission_list: list[permissions.BasePermission]
     termination_callbacks: list[Callable]
     app_name: str
@@ -122,8 +122,10 @@ class Sandbox():
 
         process = Popen(command, shell=True, close_fds=False)
 
-        if len(self.termination_callbacks) > 0 or self.block:
-            process.wait()
+        # Always block and run in background since
+        # it's difficult to terminate the sandbox otherwise
+        atexit.register(process.terminate)
+        process.wait()
 
         if len(self.termination_callbacks) > 0:
             for callback in self.termination_callbacks:
