@@ -15,46 +15,31 @@ class ConfigLoader():
         self.config = {}
     
     def load(self, config_name: str) -> dict[str, Any]:
-        self.config = self._load(config_name)
-        # Remove inherit if it's present otherwise do nothing
-        self.config.pop("inherit", None)
-        return self.config
-
-    # Doesn't set self.config and doesn't remove inherits
-    def _load(self, config_name: str) -> dict[str, Any]:
         config_file = self.find_file(config_name + ".yaml")
-        config = None
-
         with open(config_file, "r") as file:
-            config = safe_load(file)
+            config: dict[str, Any] = safe_load(file)
         
-        config = self.merge_inherits(config)
+        config_inherits = config.pop("inherit", None)
+        if not config_inherits:
+            self.config = config
+            return config
         
-        return config
+        inherit_loader = ConfigLoader(self.search_paths)
 
-    def merge_inherits(self, config: dict[str, Any]) -> dict[str, Any]:
-        inherit_list = config.get("inherit")
-        if inherit_list:
-            for name in inherit_list:
-                inherited_config = self._load(name)
-                config = self.merge_config(config, inherited_config)
-
-        return config
-
-    def merge_config(self, config: dict[str, Any], other_config: dict[str, Any]) -> dict[str, Any]:
-        new_config = config
-        categories = ["permissions", "preprocess"]
-        for key,value in other_config.items():
-            if key == "run":
-                warnings.warn(f"Inherited config '{other_config}' includes a run statement. It will be ignored. If you wanted to run it, start a seperate sandbox.", RuntimeWarning)
-                continue
-            
-            for category in categories:
-                # merger.merge(None, some_dict) will return some_dict
-                if key == category:
-                    new_config[category] = merger.merge(new_config.get(category), value)
+        inherited_configs: list[dict[str, Any]] = []
+        for inherited_name in config_inherits:
+            inherit_loader.load(inherited_name)
+            inherited_configs.append(inherit_loader.config)
+            inherit_loader.config = {}
         
-        return config
+        self.config = inherited_configs[0]
+        # If there's only one inherit then the list will be empty
+        for other_config in inherited_configs[1:]:
+            # First arg becomes returned value after merge
+            merger.merge(self.config, other_config)
+        
+        return merger.merge(self.config, config)
+        
         
     def find_file(self, filename: str) -> str:
         for path in self.search_paths:

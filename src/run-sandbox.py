@@ -52,7 +52,7 @@ config_loader = ConfigLoader(search_paths)
 config_loader.load(args.filename)
 
 if args.flatten:
-    safe_dump(config_loader.config, sys.stdout)
+    safe_dump(config_loader.config, sys.stdout, sort_keys=False)
     sys.exit(0)
 
 sandbox = None
