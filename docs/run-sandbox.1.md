@@ -44,7 +44,7 @@ Defines the name of the application. Copied (with whitespace removed) to the `ap
 Defines the application to run. Since it is passed to a shell, it can be called in any way normally possible from a shell (i.e. as a path or executable name).
 
 ## **inherit**: *list*
-Takes a list of sandbox names to inherit. Inherited sandboxes have their **preprocess** and **permission** categories merged with the parent sandbox's respective categories. Inheritance is performed recursively, so inherited sandboxes can also have their own inheritances, but it is possible to get into infinite loops, so use inheritance carefully. The **run** configuration option will not be inherited, and a warning will be printed to the console if an inherited sandbox contains it.
+Takes a list of sandbox names to inherit. Inherited sandboxes are merged with the parent config, top-to-bottom (i.e. an option in the second inherited config will be added after all options in the first). Any permissions in the parent always come last. Inheritance is performed recursively, so inherited sandboxes can also have their own inheritances, but it is possible to get into infinite loops, so use inheritance carefully. The **run** configuration option will not be inherited, and a warning will be printed to the console if an inherited sandbox contains it.
 
 ## **preprocess**
 Used to perform some operation before running the sandbox. Currently, only the **mkdir** option exists.

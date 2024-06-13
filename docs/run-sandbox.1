@@ -81,9 +81,10 @@ Since it is passed to a shell, it can be called in any way normally
 possible from a shell (i.e.\ as a path or executable name).
 .SS \f[B]inherit\f[R]: \f[I]list\f[R]
 Takes a list of sandbox names to inherit.
-Inherited sandboxes have their \f[B]preprocess\f[R] and
-\f[B]permission\f[R] categories merged with the parent sandbox\[cq]s
-respective categories.
+Inherited sandboxes are merged with the parent config, top-to-bottom
+(i.e.\ an option in the second inherited config will be added after all
+options in the first).
+Any permissions in the parent always come last.
 Inheritance is performed recursively, so inherited sandboxes can also
 have their own inheritances, but it is possible to get into infinite
 loops, so use inheritance carefully.
