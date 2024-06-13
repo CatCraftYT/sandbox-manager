@@ -29,7 +29,14 @@ class ConfigLoader():
         inherited_configs: list[dict[str, Any]] = []
         for inherited_name in config_inherits:
             inherit_loader.load(inherited_name)
-            inherited_configs.append(inherit_loader.config)
+            inherited_config = inherit_loader.config
+            
+            # Remove name and run statements
+            inherited_config.pop("name", None)
+            if inherited_config.pop("run", None):
+                warnings.warn(f"Inherited config '{inherited_name}' includes a run statement. It will be ignored. If you wanted to run it, start a seperate sandbox.", RuntimeWarning)
+            
+            inherited_configs.append(inherited_config)
             inherit_loader.config = {}
         
         self.config = inherited_configs[0]
