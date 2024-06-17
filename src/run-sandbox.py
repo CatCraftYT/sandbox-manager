@@ -39,6 +39,12 @@ argparser.add_argument(
     "filename",
     help="The name of the configuration file to run, without the file extension."
 )
+argparser.add_argument(
+    "args",
+    nargs="*",
+    help="Extra arguments to pass to the executable running in the sandbox. Use quotation \
+    marks around this parameter to pass in arguments with hyphens."
+)
 
 # Path of this script in the filesystem
 script_path = os.path.abspath(os.path.dirname(__file__))
@@ -56,7 +62,7 @@ if args.flatten:
     sys.exit(0)
 
 sandbox = None
-sandbox = Sandbox(config_loader.config)
+sandbox = Sandbox(config_loader.config, extra_args=args.args)
 
 if args.run:
     sandbox.executable = args.run

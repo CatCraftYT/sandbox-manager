@@ -14,6 +14,7 @@ class Sandbox():
     termination_callbacks: list[Callable]
     app_name: str
     executable: str
+    extra_args: list[str]
     # Args always prepended to bwrap args regardless of config
     constant_args: list[str] = [
         "--new-session",
@@ -22,11 +23,12 @@ class Sandbox():
     ]
 
     # Config is the output of yaml.safe_load()
-    def __init__(self, config: dict[str, Any], blocking: bool = True):
+    def __init__(self, config: dict[str, Any], extra_args: list[str] = [], blocking: bool = True):
         self.blocking = blocking
         self.termination_callbacks = []
         self.app_name = ""
         self.executable = ""
+        self.extra_args = extra_args
 
         # Guarantee that the app name env variable will be set regardless
         # of its position in the config (needed for dbus)
@@ -55,6 +57,7 @@ class Sandbox():
         command += self.constant_args
         command += self.config_parser.to_args()
         command.append(self.executable)
+        command += self.extra_args
 
         return " ".join(command)
     
