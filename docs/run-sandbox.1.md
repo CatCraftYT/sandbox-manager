@@ -5,10 +5,10 @@
 **sandbox-manager** - A python script to manage bubblewrap (bwrap) sandboxes using YAML configuration files.
 
 # SYNOPSIS
-run-sandbox [**-h**] [**\--flatten**] [**\--blocking**] [**\--run** *EXECUTABLE*] [**\--search-in** *DIR*] *filename*
+run-sandbox [**-h**] [**\--flatten**] [**\--blocking**] [**\--run** *EXECUTABLE*] [**\--search-in** *DIR*] *filename* [*args* ...]
 
 # DESCRIPTION
-To use the `sandbox` command, provide a valid configuration file as the `filename` argument. sandbox-manager will search for configuration files in the following places, in the following order:
+To use the **run-sandbox** command, provide a valid configuration file as the **filename** argument. sandbox-manager will search for configuration files in the following places, in the following order:
 
 1. In the directories specified in each instance of the *--search-in* command-line option.
 
@@ -19,6 +19,9 @@ To use the `sandbox` command, provide a valid configuration file as the `filenam
 # OPTIONS
 **filename**  
 The name of the configuration file to run, without the file extension.
+
+**args**  
+Extra arguments to pass to the executable running in the sandbox. Use quotation marks around arguments with hyphens.
 
 **--help -h**  
 Show a help message and exit.

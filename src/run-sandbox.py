@@ -43,7 +43,7 @@ argparser.add_argument(
     "args",
     nargs="*",
     help="Extra arguments to pass to the executable running in the sandbox. Use quotation \
-    marks around this parameter to pass in arguments with hyphens."
+    marks around arguments with hyphens."
 )
 
 # Path of this script in the filesystem

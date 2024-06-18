@@ -7,10 +7,10 @@ sandboxes using YAML configuration files.
 .SH SYNOPSIS
 run-sandbox [\f[B]-h\f[R]] [\f[B]--flatten\f[R]] [\f[B]--blocking\f[R]]
 [\f[B]--run\f[R] \f[I]EXECUTABLE\f[R]] [\f[B]--search-in\f[R]
-\f[I]DIR\f[R]] \f[I]filename\f[R]
+\f[I]DIR\f[R]] \f[I]filename\f[R] [\f[I]args\f[R] \&...]
 .SH DESCRIPTION
-To use the \f[CR]sandbox\f[R] command, provide a valid configuration
-file as the \f[CR]filename\f[R] argument.
+To use the \f[B]run-sandbox\f[R] command, provide a valid configuration
+file as the \f[B]filename\f[R] argument.
 sandbox-manager will search for configuration files in the following
 places, in the following order:
 .IP "1." 3
@@ -28,6 +28,13 @@ In the \f[B]default_configs\f[R] directory next to
 .P
 .PD
 The name of the configuration file to run, without the file extension.
+.PP
+\f[B]args\f[R]
+.PD 0
+.P
+.PD
+Extra arguments to pass to the executable running in the sandbox.
+Use quotation marks around arguments with hyphens.
 .PP
 \f[B]\[en]help -h\f[R]
 .PD 0
