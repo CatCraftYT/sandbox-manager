@@ -3,7 +3,7 @@ from typing import Any
 from os import walk
 from os.path import join as pathjoin
 from yaml import safe_load
-from deepmerge import always_merger as merger
+from classes.merger import simple_merge
 
 
 class ConfigLoader():
@@ -43,9 +43,9 @@ class ConfigLoader():
         # If there's only one inherit then the list will be empty
         for other_config in inherited_configs[1:]:
             # First arg becomes returned value after merge
-            merger.merge(self.config, other_config)
+            simple_merge(self.config, other_config)
         
-        return merger.merge(self.config, config)
+        return simple_merge(self.config, config)
         
         
     def find_file(self, filename: str) -> str:
