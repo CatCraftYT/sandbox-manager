@@ -100,7 +100,7 @@ class FilePermissions(BasePermission):
             "bind": "--bind {0} {0}",
             "bind-opt": "--bind-try {0} {0}",
             "bind-to": "--bind {0}",
-            "bind-to-opt": "--bind {0}",
+            "bind-to-opt": "--bind-try {0}",
             "link": "--symlink {0}",
             "new-dev": "--dev {0}",
             "new-tmpfs": "--tmpfs {0}",
