@@ -6,16 +6,6 @@ permissions:
     # Every app has access to every other app's shared files - need to fix
     bind:
       - '"$XDG_RUNTIME_DIR/doc"'
-
-    # Adds a 'flatpak-info' file to the sandbox, to work around
-    # xdg-desktop-portal's filesharing limitation
-    create-files:
-      /.flatpak-info: |
-        [Application]
-        name=org.custom.$appName
-      "$XDG_RUNTIME_DIR/.flatpak-info": |
-        [Application]
-        name=org.custom.$appName
   dbus:
     talk:
       - org.freedesktop.portal.*

@@ -19,12 +19,5 @@ permissions:
       - /usr/lib /lib
       - /usr/lib /lib64
       - /usr/bin /sbin
-    create-files:
-      /.flatpak-info: |
-        [Application]
-        name=org.custom.$appName
-      "$XDG_RUNTIME_DIR/.flatpak-info": |
-        [Application]
-        name=org.custom.$appName
 
 run: xdg-dbus-proxy "$DBUS_SESSION_BUS_ADDRESS" "$XDG_RUNTIME_DIR/xdg-dbus-proxy/$appName.sock" --filter
